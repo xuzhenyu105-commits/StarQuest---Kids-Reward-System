@@ -1,28 +1,38 @@
 /**
- * ⚠️ 紧急修复模式：模拟 AI 服务
- * 已移除 Google SDK 依赖，确保 Vercel 构建成功且不白屏。
+ * ⚠️ 终极模拟模式：修复所有 Build Error
+ * 包含了所有组件可能调用的函数名称，彻底解决报错。
  */
 
-// 1. 模拟聊天回复 (Coach 功能)
+// 1. 模拟聊天 (对应 sendMessageToGemini)
 export const sendMessageToGemini = async (message: string) => {
-  console.log("【模拟模式】接收到消息:", message);
+  console.log("【模拟聊天】:", message);
   await new Promise(resolve => setTimeout(resolve, 1000));
-  return `🎉 恭喜！应用已修复！
+  return `🎉 恭喜！AI 模拟服务已连接。
   
-目前 AI 处于【模拟模式】，断开了与 Google 的连接以防止报错。
-核心功能（任务、奖励）现在都可以正常使用了！`;
+目前处于【离线模式】，无需 API Key 即可运行。
+核心功能（任务、奖励）完全正常！`;
 };
 
-// 2. 模拟任务拆解 (TaskList 功能) - 刚才缺的就是这个！
-export const breakDownTask = async (taskTitle: string) => {
-  console.log("【模拟模式】拆解任务:", taskTitle);
-  await new Promise(resolve => setTimeout(resolve, 800));
+// 2. 模拟育儿建议 (对应 Coach.tsx 里的 getParentingAdvice) - 就是缺了这个！
+export const getParentingAdvice = async (message: string) => {
+  console.log("【模拟建议】:", message);
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  return `🤖 这里是 AI 教练（模拟版）：
   
-  // 返回一些固定的假步骤，骗过调用者，防止报错
+我收到了你的问题：“${message}”
+  
+因为现在没有配置 Google API Key，我只能暂时这样回复你。
+不过别担心，只要能看到这段话，说明你的 App 已经修好了！快去给孩子布置任务吧！🌟`;
+};
+
+// 3. 模拟任务拆解 (对应 TaskList.tsx 里的 breakDownTask)
+export const breakDownTask = async (taskTitle: string) => {
+  console.log("【模拟拆解】:", taskTitle);
+  await new Promise(resolve => setTimeout(resolve, 800));
   return [
-    `准备：开始"${taskTitle}"的第一步`,
-    `执行：专注完成任务内容`,
-    `检查：确认做得怎么样了`,
-    `完成：给自己一个大大的赞！`
+    `第一步：准备好做"${taskTitle}"的心情`,
+    `第二步：开始认真执行`,
+    `第三步：坚持到底`,
+    `第四步：完成啦！给自己加星星！`
   ];
 };
