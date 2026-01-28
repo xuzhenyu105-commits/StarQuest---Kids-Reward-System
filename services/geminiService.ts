@@ -1,21 +1,28 @@
 /**
  * ⚠️ 紧急修复模式：模拟 AI 服务
- * 原来的 Google AI 代码已被移除，防止因为没有 API Key 导致白屏。
+ * 已移除 Google SDK 依赖，确保 Vercel 构建成功且不白屏。
  */
 
-// 注意：这里绝对不能有 import { ... } from "@google/generative-ai";
-// 只要那行代码存在，它就会尝试加载 SDK 并可能报错。
-
+// 1. 模拟聊天回复 (Coach 功能)
 export const sendMessageToGemini = async (message: string) => {
   console.log("【模拟模式】接收到消息:", message);
-  
-  // 1. 假装思考 1 秒钟
   await new Promise(resolve => setTimeout(resolve, 1000));
+  return `🎉 恭喜！应用已修复！
+  
+目前 AI 处于【模拟模式】，断开了与 Google 的连接以防止报错。
+核心功能（任务、奖励）现在都可以正常使用了！`;
+};
 
-  // 2. 返回一个固定的回复，确保不会报错
-  return `🎉 恭喜！你的应用已经成功复活了！
+// 2. 模拟任务拆解 (TaskList 功能) - 刚才缺的就是这个！
+export const breakDownTask = async (taskTitle: string) => {
+  console.log("【模拟模式】拆解任务:", taskTitle);
+  await new Promise(resolve => setTimeout(resolve, 800));
   
-目前 AI 处于【模拟模式】（为了防止白屏，暂时断开了与 Google 的连接）。
-  
-你可以放心地去使用“做任务”和“兑礼品”功能了！它们都能完美工作！`;
+  // 返回一些固定的假步骤，骗过调用者，防止报错
+  return [
+    `准备：开始"${taskTitle}"的第一步`,
+    `执行：专注完成任务内容`,
+    `检查：确认做得怎么样了`,
+    `完成：给自己一个大大的赞！`
+  ];
 };
