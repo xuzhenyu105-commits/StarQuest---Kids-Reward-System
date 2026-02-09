@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Task, Reward, Tab } from './types';
 import TaskList from './components/TaskList';
 import RewardShop from './components/RewardShop';
-import Coach from './components/Coach';
+// ❌ 删除：不再引入 Coach 组件
+// import Coach from './components/Coach'; 
 import DataSyncModal from './components/DataSyncModal';
-import { Trophy, CheckSquare, ShoppingBag, MessageCircleQuestion, Star, Sparkles, RefreshCcw, Cloud } from 'lucide-react';
+import { Trophy, CheckSquare, ShoppingBag, Star, Sparkles, RefreshCcw, Cloud } from 'lucide-react';
 
 const INITIAL_TASKS: Task[] = [
   { id: '1', title: '背诵古诗一首', points: 5, icon: '🏮', isCompleted: false, category: 'daily', module: 'chinese' },
@@ -29,7 +30,6 @@ function App() {
   const [animatePoints, setAnimatePoints] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  // dayKey 用于强制 TaskList 重新卸载并挂载，彻底清除子组件内部缓存
   const [dayKey, setDayKey] = useState(0);
 
   // 1. 初始化加载
@@ -54,7 +54,7 @@ function App() {
     setIsLoaded(true);
   }, []);
 
-  // 2. 统一持久化逻辑：单向数据流 (State -> Effect -> LocalStorage)
+  // 2. 统一持久化逻辑
   useEffect(() => {
     if (!isLoaded) return;
     localStorage.setItem('sq_points_v4', points.toString());
@@ -201,11 +201,7 @@ function App() {
           </div>
         )}
 
-        {activeTab === Tab.COACH && (
-          <div className="h-full">
-             <Coach />
-          </div>
-        )}
+        {/* ❌ 删除：移除了 COACH 页面的渲染逻辑 */}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 py-4 flex justify-around items-center z-50 rounded-t-[2.5rem] shadow-[0_-15px_30px_rgba(0,0,0,0.05)]">
@@ -233,17 +229,7 @@ function App() {
           </span>
         </button>
 
-        <button 
-          onClick={() => setActiveTab(Tab.COACH)}
-          className={`flex flex-col items-center gap-1.5 transition-all group ${activeTab === Tab.COACH ? 'text-emerald-500' : 'text-slate-300'}`}
-        >
-          <div className={`p-3 rounded-2xl transition-all ${activeTab === Tab.COACH ? 'bg-emerald-100 shadow-inner' : 'group-hover:bg-slate-50'}`}>
-            <MessageCircleQuestion size={26} strokeWidth={activeTab === Tab.COACH ? 3 : 2} />
-          </div>
-          <span className={`text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === Tab.COACH ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
-            问专家
-          </span>
-        </button>
+        {/* ❌ 删除：移除了底部“问专家”的按钮 */}
       </nav>
 
       <DataSyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
