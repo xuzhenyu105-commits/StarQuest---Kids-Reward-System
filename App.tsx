@@ -3,7 +3,8 @@ import { Task, Reward, Tab } from './types';
 import TaskList from './components/TaskList';
 import RewardShop from './components/RewardShop';
 import Coach from './components/Coach';
-import { Trophy, CheckSquare, ShoppingBag, MessageCircleQuestion, Star, Sparkles, RefreshCcw } from 'lucide-react';
+import DataSyncModal from './components/DataSyncModal';
+import { Trophy, CheckSquare, ShoppingBag, MessageCircleQuestion, Star, Sparkles, RefreshCcw, Cloud } from 'lucide-react';
 
 const INITIAL_TASKS: Task[] = [
   { id: '1', title: '背诵古诗一首', points: 5, icon: '🏮', isCompleted: false, category: 'daily', module: 'chinese' },
@@ -27,6 +28,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.TASKS);
   const [animatePoints, setAnimatePoints] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   // dayKey 用于强制 TaskList 重新卸载并挂载，彻底清除子组件内部缓存
   const [dayKey, setDayKey] = useState(0);
 
@@ -53,7 +55,6 @@ function App() {
   }, []);
 
   // 2. 统一持久化逻辑：单向数据流 (State -> Effect -> LocalStorage)
-  // 移除函数内部的手动保存，避免竞态条件冲突
   useEffect(() => {
     if (!isLoaded) return;
     localStorage.setItem('sq_points_v4', points.toString());
@@ -96,33 +97,17 @@ function App() {
     });
   }, []);
 
-  /**
-   * 修复后的重置逻辑：
-   * 1. 移除了手动 localStorage 操作。
-   * 2. 使用函数式更新确保数据同步。
-   * 3. 改变 key 强制 UI 刷新。
-   */
   const resetDailyTasks = () => {
     if (window.confirm("确认开启新的一天？\n清单中所有已完成的任务将恢复为“待完成”状态。")) {
-      
-      // 1. 核心修复：只更新 React 状态
-      // 让上面的 useEffect 自动检测变化并进行持久化
       setTasks(prevTasks => {
         return prevTasks.map(task => ({
           ...task,
-          isCompleted: false // 强制所有任务重置
+          isCompleted: false 
         }));
       });
-      
-      // 2. 核心修复：更新 key 强制强制重新渲染新列表
-      // 彻底清除 DOM 上的视觉状态（如 Checkbox 的勾选）
       setDayKey(prev => prev + 1);
-      
-      // 3. 视觉反馈
       setAnimatePoints(true);
       setTimeout(() => setAnimatePoints(false), 600);
-      
-      // 4. 切换回任务页
       setActiveTab(Tab.TASKS);
     }
   };
@@ -130,7 +115,7 @@ function App() {
   return (
     <div className="min-h-screen bg-sky-50 max-w-md mx-auto shadow-2xl overflow-hidden flex flex-col relative pb-20">
       <header className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white p-6 rounded-b-[3.5rem] shadow-xl relative z-10 border-b-4 border-indigo-400/20">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-3">
             <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/10">
                 <Trophy className="text-yellow-300" size={22} strokeWidth={2.5} />
@@ -140,12 +125,20 @@ function App() {
                 <p className="text-lg font-black text-white leading-none">{lifetimePoints} <span className="text-xs font-normal opacity-80">颗</span></p>
             </div>
           </div>
-          <button 
-            onClick={resetDailyTasks} 
-            className="flex items-center gap-2 text-[12px] bg-white text-indigo-700 px-5 py-2.5 rounded-2xl font-black shadow-lg active:scale-95 transition-all border-b-4 border-slate-200 active:border-b-0 active:translate-y-1"
-          >
-            <RefreshCcw size={16} strokeWidth={3} className={animatePoints ? 'animate-spin' : ''} /> 新的一天
-          </button>
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={resetDailyTasks} 
+              className="flex items-center gap-2 text-[11px] bg-white text-indigo-700 px-4 py-2 rounded-xl font-black shadow-lg active:scale-95 transition-all border-b-4 border-slate-200 active:border-b-0 active:translate-y-1"
+            >
+              <RefreshCcw size={14} strokeWidth={3} className={animatePoints ? 'animate-spin' : ''} /> 新的一天
+            </button>
+            <button 
+              onClick={() => setIsSyncModalOpen(true)}
+              className="flex items-center gap-2 text-[11px] bg-indigo-500/30 text-white px-4 py-2 rounded-xl font-black backdrop-blur-sm border border-white/10 hover:bg-indigo-500/50 active:scale-95 transition-all"
+            >
+              <Cloud size={14} strokeWidth={3} /> 数据同步
+            </button>
+          </div>
         </div>
         
         <div className="flex flex-col items-center py-4">
@@ -177,7 +170,6 @@ function App() {
                     任务大厅
                 </h2>
              </div>
-             {/* 核心修复：key 绑定 dayKey 确保重置时强制挂载新组件 */}
              <TaskList 
                 key={`reset-key-${dayKey}`}
                 tasks={tasks} 
@@ -253,6 +245,8 @@ function App() {
           </span>
         </button>
       </nav>
+
+      <DataSyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
     </div>
   );
 }
