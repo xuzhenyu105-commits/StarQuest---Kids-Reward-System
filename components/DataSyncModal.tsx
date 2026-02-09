@@ -1,162 +1,211 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Download, Upload, Cloud, AlertCircle } from 'lucide-react';
+import { X, Copy, Download, Upload, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface DataSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const DataSyncModal: React.FC<DataSyncModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
-  const [saveCode, setSaveCode] = useState('');
+// 定义我们需要备份的数据结构
+interface BackupData {
+  points: string | null;
+  lifetime: string | null;
+  tasks: string | null;
+  version: string;
+  timestamp: number;
+}
+
+export default function DataSyncModal({ isOpen, onClose }: DataSyncModalProps) {
+  const [mode, setMode] = useState<'export' | 'import'>('export');
+  const [exportCode, setExportCode] = useState('');
   const [importCode, setImportCode] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
+  // 当模态框打开或切换到导出模式时，生成代码
   useEffect(() => {
-    if (isOpen && activeTab === 'export') {
-      generateSaveCode();
+    if (isOpen && mode === 'export') {
+      generateExportCode();
     }
-  }, [isOpen, activeTab]);
+  }, [isOpen, mode]);
 
-  const generateSaveCode = () => {
-    const data = {
-      points: localStorage.getItem('sq_points_v4'),
-      lifetime: localStorage.getItem('sq_lifetime_v4'),
-      tasks: localStorage.getItem('sq_tasks_v4'),
-      timestamp: Date.now()
-    };
-    const jsonStr = JSON.stringify(data);
-    const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
-    setSaveCode(encoded);
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(saveCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleImport = () => {
-    setError('');
+  // 生成导出代码
+  const generateExportCode = () => {
     try {
-      if (!importCode.trim()) {
-        setError('请输入存档代码');
-        return;
-      }
-      const decoded = decodeURIComponent(escape(atob(importCode)));
-      const data = JSON.parse(decoded);
+      // 1. 获取所有相关数据，注意 keys 要和 App.tsx 保持一致
+      const data: BackupData = {
+        points: localStorage.getItem('sq_points_v4'),
+        lifetime: localStorage.getItem('sq_lifetime_v4'),
+        tasks: localStorage.getItem('sq_tasks_v4'),
+        version: 'v4',
+        timestamp: Date.now(),
+      };
 
-      if (data.points === undefined || data.tasks === undefined) {
-        throw new Error('存档格式错误');
+      // 2. 转换为 JSON 字符串
+      const jsonString = JSON.stringify(data);
+
+      // 3. 编码：先 encodeURIComponent 处理中文，再 btoa 转 Base64
+      const encoded = btoa(encodeURIComponent(jsonString));
+      
+      setExportCode(encoded);
+    } catch (e) {
+      console.error("生成存档失败", e);
+      setExportCode("生成失败，请重试");
+    }
+  };
+
+  // 复制到剪贴板
+  const handleCopy = () => {
+    navigator.clipboard.writeText(exportCode).then(() => {
+      setCopyStatus('copied');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    });
+  };
+
+  // 执行导入
+  const handleImport = () => {
+    if (!importCode.trim()) return;
+
+    try {
+      // 1. 解码：先 atob 解 Base64，再 decodeURIComponent 解中文
+      const jsonString = decodeURIComponent(atob(importCode.trim()));
+      const data: BackupData = JSON.parse(jsonString);
+
+      // 2. 简单验证数据有效性
+      if (!data.version || !data.tasks) {
+        throw new Error("无效的存档格式");
       }
 
-      if (window.confirm('确认导入存档吗？这将覆盖当前所有进度并刷新页面。')) {
-        localStorage.setItem('sq_points_v4', data.points);
-        localStorage.setItem('sq_lifetime_v4', data.lifetime || '0');
-        localStorage.setItem('sq_tasks_v4', data.tasks);
-        window.location.reload();
+      // 3. 二次确认
+      if (confirm(`检测到存档时间：${new Date(data.timestamp).toLocaleString()}\n确定要覆盖当前的星星和任务进度吗？\n此操作无法撤销！`)) {
+        // 4. 写入 LocalStorage
+        if (data.points) localStorage.setItem('sq_points_v4', data.points);
+        if (data.lifetime) localStorage.setItem('sq_lifetime_v4', data.lifetime);
+        if (data.tasks) localStorage.setItem('sq_tasks_v4', data.tasks);
+
+        setImportStatus('success');
+        
+        // 5. 延迟刷新页面以应用更改
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       }
     } catch (e) {
-      setError('无效的存档代码，请检查是否完整复制。');
+      console.error(e);
+      setImportStatus('error');
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
-        className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Cloud size={24} />
-            <h2 className="text-xl font-black">数据同步</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-all">
-            <X size={20} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        
+        {/* Header */}
+        <div className="bg-indigo-600 p-5 flex justify-between items-center text-white">
+          <h3 className="font-black text-lg flex items-center gap-2">
+            <RefreshCw size={20} /> 数据同步助手
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+            <X size={24} />
           </button>
         </div>
 
-        <div className="p-1 flex bg-slate-100 mx-6 mt-6 rounded-2xl">
-          <button 
-            onClick={() => setActiveTab('export')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'export' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+        {/* Tabs */}
+        <div className="flex p-2 bg-slate-50 border-b border-slate-100">
+          <button
+            onClick={() => setMode('export')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+              mode === 'export' 
+                ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
           >
-            <Download size={16} /> 导出存档
+            <Upload size={16} /> 导出 (旧设备)
           </button>
-          <button 
-            onClick={() => setActiveTab('import')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'import' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+          <button
+            onClick={() => setMode('import')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+              mode === 'import' 
+                ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
           >
-            <Upload size={16} /> 导入存档
+            <Download size={16} /> 导入 (新设备)
           </button>
         </div>
 
-        <div className="p-6">
-          {activeTab === 'export' ? (
+        {/* Content */}
+        <div className="p-6 flex-1 overflow-y-auto">
+          {mode === 'export' ? (
             <div className="space-y-4">
-              <p className="text-sm text-slate-500 font-medium">
-                复制下方的代码，可以粘贴到其他设备上恢复你的进度。
-              </p>
-              <div className="relative group">
-                <textarea 
-                  readOnly 
-                  value={saveCode}
-                  className="w-full h-32 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[10px] font-mono break-all focus:outline-none focus:border-indigo-200 transition-all resize-none"
-                />
-                <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                  <span className="bg-white px-4 py-2 rounded-full shadow-lg text-indigo-600 font-bold text-xs">
-                    存档码已生成
-                  </span>
-                </div>
+              <div className="bg-amber-50 text-amber-600 text-xs p-3 rounded-xl border border-amber-100 flex gap-2">
+                <AlertTriangle size={16} className="shrink-0" />
+                <p>这是你的所有星星和任务记录。请复制下方代码，发送给新设备。</p>
               </div>
-              <button 
+              
+              <div className="relative">
+                <textarea
+                  readOnly
+                  value={exportCode}
+                  className="w-full h-40 bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-[10px] text-slate-500 font-mono resize-none focus:outline-none focus:border-indigo-300"
+                />
+              </div>
+
+              <button
                 onClick={handleCopy}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+                className={`w-full py-3.5 rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                  copyStatus === 'copied'
+                    ? 'bg-green-500 text-white shadow-green-200'
+                    : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700'
+                } shadow-lg`}
               >
-                {copied ? <><Check size={18} /> 已复制到剪贴板</> : <><Copy size={18} /> 一键复制存档码</>}
+                {copyStatus === 'copied' ? (
+                  <> <CheckCircle2 size={18} /> 已复制！去发送吧 </>
+                ) : (
+                  <> <Copy size={18} /> 一键复制存档代码 </>
+                )}
               </button>
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-slate-500 font-medium">
-                粘贴你在其他设备上导出的存档代码。
-              </p>
-              <textarea 
+               <div className="bg-blue-50 text-blue-600 text-xs p-3 rounded-xl border border-blue-100 flex gap-2">
+                <AlertTriangle size={16} className="shrink-0" />
+                <p>请粘贴从旧设备复制的代码。<b>警告：这将覆盖当前的星星数量！</b></p>
+              </div>
+
+              <textarea
                 value={importCode}
                 onChange={(e) => {
                   setImportCode(e.target.value);
-                  setError('');
+                  setImportStatus('idle');
                 }}
-                placeholder="在此粘贴存档码..."
-                className={`w-full h-32 p-4 bg-slate-50 border-2 rounded-2xl text-[10px] font-mono break-all focus:outline-none transition-all resize-none ${error ? 'border-rose-200 bg-rose-50' : 'border-slate-100 focus:border-indigo-200'}`}
+                placeholder="在此长按粘贴存档代码..."
+                className={`w-full h-40 bg-slate-50 border-2 rounded-2xl p-4 text-[10px] font-mono resize-none focus:outline-none transition-colors ${
+                  importStatus === 'error' ? 'border-red-300 bg-red-50 text-red-600' : 'border-slate-200 focus:border-indigo-300 text-slate-800'
+                }`}
               />
-              {error && (
-                <div className="flex items-center gap-2 text-rose-500 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                  <AlertCircle size={14} /> {error}
-                </div>
+
+              {importStatus === 'error' && (
+                <p className="text-xs text-red-500 font-bold text-center">❌ 代码格式错误，请检查是否复制完整</p>
               )}
-              <button 
+              
+              {importStatus === 'success' && (
+                <p className="text-xs text-green-500 font-bold text-center">✅ 导入成功！正在刷新...</p>
+              )}
+
+              <button
                 onClick={handleImport}
-                className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
+                disabled={!importCode || importStatus === 'success'}
+                className="w-full bg-slate-800 text-white py-3.5 rounded-xl font-black flex items-center justify-center gap-2 shadow-lg shadow-slate-200 hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
               >
-                <Check size={18} /> 确认导入并刷新
+                <Download size={18} /> 确认覆盖并导入
               </button>
             </div>
           )}
         </div>
-
-        <div className="px-6 pb-6 text-center">
-          <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">
-            StarQuest Cloud Sync v1.0
-          </p>
-        </div>
       </div>
     </div>
   );
-};
-
-export default DataSyncModal;
+}
