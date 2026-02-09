@@ -4,15 +4,10 @@ import { Send, User, Bot, Loader2 } from 'lucide-react';
 
 const Coach: React.FC = () => {
   const [messages, setMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
-    { role: 'ai', text: "Hi! I'm your StarQuest Coach. I can help you set fair point values, suggest age-appropriate tasks for an 8-year-old, or help you structure this reward system effectively. What's on your mind?" }
+    { role: 'ai', text: "你好！我是 StarQuest 育儿教练。我可以帮你设定合理的积分值，为 8 岁的孩子建议合适的任务，或者帮你完善这个奖励机制。你想聊聊什么？" }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Initial prompt handling if this is first load
-  useEffect(() => {
-     // Optional: Auto-load the specific user question context if we wanted to
-  }, []);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -31,8 +26,8 @@ const Coach: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="bg-emerald-600 p-4 text-white">
-        <h2 className="font-bold flex items-center gap-2"><Bot size={20}/> Parent Coach</h2>
-        <p className="text-emerald-100 text-xs mt-1">AI-powered advice for your reward system</p>
+        <h2 className="font-bold flex items-center gap-2"><Bot size={20}/> 育儿专家建议</h2>
+        <p className="text-emerald-100 text-xs mt-1">基于 AI 的奖励机制优化建议</p>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -65,7 +60,7 @@ const Coach: React.FC = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Ask for advice..."
+          placeholder="问问专家的建议..."
           className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
         <button 

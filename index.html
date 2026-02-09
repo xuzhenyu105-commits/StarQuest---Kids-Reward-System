@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>StarQuest</title>
+    <title>StarQuest - 孩子们的星愿任务</title>
     
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#4f46e5" />
@@ -19,7 +19,6 @@
       body {
         font-family: 'Fredoka', sans-serif;
         background-color: #f0f9ff;
-        /* Prevent pull-to-refresh on mobile to feel more like an app */
         overscroll-behavior-y: none;
       }
       .animate-bounce-short {
@@ -28,6 +27,13 @@
       @keyframes bounce-short {
         0%, 100% { transform: translateY(0); }
         50% { transform: translateY(-10px); }
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
     </style>
   <script type="importmap">
@@ -44,7 +50,6 @@
 </head>
   <body>
     <div id="root"></div>
-    
-    <script type="module" src="/index.tsx"></script>
-    </body>
+    <script type="module" src="./index.tsx"></script>
+  </body>
 </html>

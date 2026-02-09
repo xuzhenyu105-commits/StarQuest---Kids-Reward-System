@@ -1,237 +1,252 @@
-import React, { useState, useEffect } from 'react';
-import { Star, Gift, Trophy, Settings, Upload, Download, Copy, Check, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Task, Reward, Tab } from './types';
+import TaskList from './components/TaskList';
+import RewardShop from './components/RewardShop';
+import Coach from './components/Coach';
+import DataSyncModal from './components/DataSyncModal';
+import { Trophy, CheckSquare, ShoppingBag, MessageCircleQuestion, Star, Sparkles, RefreshCcw, Cloud } from 'lucide-react';
 
-// 预设的鼓励语录
-const PRAISES = [
-  "太棒了！你真是个小天才！🌟",
-  "哇！今天的表现简直完美！🔥",
-  "继续保持！星星在向你招手！✨",
-  "超级给力！为你感到骄傲！🚀",
-  "努力总会有回报的！加油！💪"
+const INITIAL_TASKS: Task[] = [
+  { id: '1', title: '背诵古诗一首', points: 5, icon: '🏮', isCompleted: false, category: 'daily', module: 'chinese' },
+  { id: '2', title: '口算练习 20 道', points: 5, icon: '📐', isCompleted: false, category: 'daily', module: 'math' },
+  { id: '3', title: '英语绘本阅读', points: 5, icon: '🔤', isCompleted: false, category: 'daily', module: 'english' },
+  { id: '4', title: '跳绳 500 下', points: 5, icon: '🏃', isCompleted: false, category: 'daily', module: 'sports' },
 ];
 
-interface HistoryItem {
-  id: number;
-  type: 'add' | 'redeem';
-  amount: number;
-  reason: string;
-  timestamp: string;
-}
-
-interface RewardItem {
-  id: number;
-  name: string;
-  cost: number;
-  icon: string;
-}
-
-const REWARDS: RewardItem[] = [
-  { id: 1, name: '小礼品 (文具/贴纸)', cost: 5, icon: '🎁' },
-  { id: 2, name: '看电视 30 分钟', cost: 15, icon: '📺' },
-  { id: 3, name: '周末吃大餐', cost: 50, icon: '🍕' },
-  { id: 4, name: '心仪玩具一个', cost: 100, icon: '🧸' },
+const INITIAL_REWARDS: Reward[] = [
+  { id: '1', title: '小礼品 (文具/贴纸)', cost: 5, icon: '🎁' },
+  { id: '2', title: '看电视 30 分钟', cost: 15, icon: '📺' },
+  { id: '3', title: '周末吃大餐', cost: 50, icon: '🍕' },
+  { id: '4', title: '心仪玩具一个', cost: 100, icon: '🧸' },
 ];
 
 function App() {
-  // 🛡️ 安全核心：在网页启动的一瞬间，先读取数据，再决定初始值
-  // 这样绝对不会把原来的数据覆盖成 0
-  const [stars, setStars] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stars');
-      return saved ? parseInt(saved) : 0;
-    } catch (e) {
-      return 0;
-    }
-  });
+  const [points, setPoints] = useState<number>(0);
+  const [lifetimePoints, setLifetimePoints] = useState<number>(0);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>(INITIAL_REWARDS);
+  const [activeTab, setActiveTab] = useState<Tab>(Tab.TASKS);
+  const [animatePoints, setAnimatePoints] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  // dayKey 用于强制 TaskList 重新卸载并挂载，彻底清除子组件内部缓存
+  const [dayKey, setDayKey] = useState(0);
 
-  const [history, setHistory] = useState<HistoryItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('history');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [showSettings, setShowSettings] = useState(false);
-  const [importCode, setImportCode] = useState('');
-
-  // 保存数据到本地 (只有当星星发生变化时才保存)
+  // 1. 初始化加载
   useEffect(() => {
-    localStorage.setItem('stars', stars.toString());
-    localStorage.setItem('history', JSON.stringify(history));
-  }, [stars, history]);
-
-  // 添加星星
-  const addStar = () => {
-    const newStars = stars + 1;
-    setStars(newStars);
-    const randomPraise = PRAISES[Math.floor(Math.random() * PRAISES.length)];
-    const newItem: HistoryItem = {
-      id: Date.now(),
-      type: 'add',
-      amount: 1,
-      reason: '完成任务',
-      timestamp: new Date().toLocaleTimeString(),
-    };
-    setHistory([newItem, ...history]);
-    // 去掉alert，体验更好
-    // alert(randomPraise); 
-  };
-
-  // 兑换奖励
-  const redeemReward = (reward: RewardItem) => {
-    if (stars >= reward.cost) {
-      if (confirm(`确定要消耗 ${reward.cost} 颗星星兑换 "${reward.name}" 吗？`)) {
-        setStars(stars - reward.cost);
-        const newItem: HistoryItem = {
-          id: Date.now(),
-          type: 'redeem',
-          amount: reward.cost,
-          reason: `兑换: ${reward.name}`,
-          timestamp: new Date().toLocaleTimeString(),
-        };
-        setHistory([newItem, ...history]);
+    const savedPoints = localStorage.getItem('sq_points_v4');
+    const savedLifetime = localStorage.getItem('sq_lifetime_v4');
+    const savedTasks = localStorage.getItem('sq_tasks_v4');
+    
+    if (savedPoints) setPoints(Number(savedPoints));
+    if (savedLifetime) setLifetimePoints(Number(savedLifetime));
+    
+    if (savedTasks) {
+      try {
+        const parsedTasks = JSON.parse(savedTasks);
+        setTasks(parsedTasks.length > 0 ? parsedTasks : [...INITIAL_TASKS]);
+      } catch (e) {
+        setTasks([...INITIAL_TASKS]);
       }
     } else {
-      alert("星星不够哦！继续加油！");
+      setTasks([...INITIAL_TASKS]);
     }
-  };
+    setIsLoaded(true);
+  }, []);
 
-  // 导出数据
-  const handleExport = () => {
-    const data = JSON.stringify({ stars, history });
-    const encoded = btoa(encodeURIComponent(data));
-    navigator.clipboard.writeText(encoded).then(() => {
-      alert("✅ 存档代码已复制！\n请通过微信/QQ发送给手机。");
-    });
-  };
+  // 2. 统一持久化逻辑：单向数据流 (State -> Effect -> LocalStorage)
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem('sq_points_v4', points.toString());
+    localStorage.setItem('sq_lifetime_v4', lifetimePoints.toString());
+    localStorage.setItem('sq_tasks_v4', JSON.stringify(tasks));
+  }, [points, lifetimePoints, tasks, isLoaded]);
 
-  // 导入数据
-  const handleImport = () => {
-    try {
-      if (!importCode) return;
-      const decoded = decodeURIComponent(atob(importCode));
-      const data = JSON.parse(decoded);
-      
-      if (typeof data.stars === 'number' && Array.isArray(data.history)) {
-        if(confirm(`检测到存档：\n⭐ 星星：${data.stars} 颗\n\n确定要覆盖当前数据吗？`)){
-             localStorage.setItem('stars', data.stars.toString());
-             localStorage.setItem('history', JSON.stringify(data.history));
-             alert("导入成功！");
-             window.location.reload();
+  const handleCompleteTask = useCallback((task: Task) => {
+    if (task.isCompleted) return;
+    
+    setPoints(prev => prev + task.points);
+    setLifetimePoints(prev => prev + task.points);
+    
+    setAnimatePoints(true);
+    setTimeout(() => setAnimatePoints(false), 800);
+
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted: true } : t));
+  }, []);
+
+  const handleAddTask = useCallback((newTask: Task) => {
+    setTasks(prev => [newTask, ...prev]);
+  }, []);
+  
+  const handleDeleteTask = useCallback((id: string) => {
+    if (window.confirm("确定要删除这个任务吗？")) {
+      setTasks(prev => prev.filter(t => t.id !== id));
+    }
+  }, []);
+  
+  const handleRedeemReward = useCallback((reward: Reward) => {
+    setPoints(prevPoints => {
+      if (prevPoints >= reward.cost) {
+        if (window.confirm(`确认兑换 "${reward.title}" 吗？将消耗 ${reward.cost} 星星。`)) {
+          return prevPoints - reward.cost;
         }
       } else {
-        alert("无效的存档代码！");
+        alert("星星还不够哦，加油做任务吧！");
       }
-    } catch (e) {
-      alert("导入失败，请检查代码是否完整！");
-    }
-  };
+      return prevPoints;
+    });
+  }, []);
 
-  const handleReset = () => {
-    if (confirm("⚠️ 警告：确定要清空所有数据吗？")) {
-      localStorage.clear();
-      window.location.reload();
+  const resetDailyTasks = () => {
+    if (window.confirm("确认开启新的一天？\n清单中所有已完成的任务将恢复为“待完成”状态。")) {
+      setTasks(prevTasks => {
+        return prevTasks.map(task => ({
+          ...task,
+          isCompleted: false 
+        }));
+      });
+      setDayKey(prev => prev + 1);
+      setAnimatePoints(true);
+      setTimeout(() => setAnimatePoints(false), 600);
+      setActiveTab(Tab.TASKS);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-10">
-      <div className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
-        <h1 className="text-xl font-bold text-indigo-600 flex items-center gap-2">
-          <Trophy className="w-6 h-6 text-yellow-500" /> StarQuest
-        </h1>
+    <div className="min-h-screen bg-sky-50 max-w-md mx-auto shadow-2xl overflow-hidden flex flex-col relative pb-20">
+      <header className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white p-6 rounded-b-[3.5rem] shadow-xl relative z-10 border-b-4 border-indigo-400/20">
+        <div className="flex justify-between items-start mb-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/10">
+                <Trophy className="text-yellow-300" size={22} strokeWidth={2.5} />
+            </div>
+            <div>
+                <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest leading-none mb-1">总累计星星</p>
+                <p className="text-lg font-black text-white leading-none">{lifetimePoints} <span className="text-xs font-normal opacity-80">颗</span></p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={resetDailyTasks} 
+              className="flex items-center gap-2 text-[11px] bg-white text-indigo-700 px-4 py-2 rounded-xl font-black shadow-lg active:scale-95 transition-all border-b-4 border-slate-200 active:border-b-0 active:translate-y-1"
+            >
+              <RefreshCcw size={14} strokeWidth={3} className={animatePoints ? 'animate-spin' : ''} /> 新的一天
+            </button>
+            <button 
+              onClick={() => setIsSyncModalOpen(true)}
+              className="flex items-center gap-2 text-[11px] bg-indigo-500/30 text-white px-4 py-2 rounded-xl font-black backdrop-blur-sm border border-white/10 hover:bg-indigo-500/50 active:scale-95 transition-all"
+            >
+              <Cloud size={14} strokeWidth={3} /> 数据同步
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex flex-col items-center py-4">
+          <div className={`relative transition-all duration-500 ${animatePoints ? 'scale-110' : 'scale-100'}`}>
+             <div className="text-8xl font-black text-white drop-shadow-[0_8px_0_rgba(0,0,0,0.1)] flex items-center gap-2">
+                {points}
+                <Star className="text-yellow-300 fill-yellow-300 drop-shadow-[0_4px_10px_rgba(253,224,71,0.5)]" size={54} strokeWidth={2.5} />
+             </div>
+             {animatePoints && (
+               <div className="absolute -top-8 -right-8 animate-bounce">
+                 <Sparkles className="text-yellow-200" size={48} />
+               </div>
+             )}
+          </div>
+          <div className="mt-4 bg-black/10 backdrop-blur-sm px-5 py-1.5 rounded-full border border-white/5">
+            <p className="text-indigo-100 font-black tracking-[0.2em] text-[10px] uppercase">可用星星</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto p-4 pt-8">
+        {activeTab === Tab.TASKS && (
+          <div className="space-y-4">
+             <div className="flex items-center justify-between px-2">
+                <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                    <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
+                      <CheckSquare size={18} strokeWidth={3} />
+                    </div>
+                    任务大厅
+                </h2>
+             </div>
+             <TaskList 
+                key={`reset-key-${dayKey}`}
+                tasks={tasks} 
+                onCompleteTask={handleCompleteTask} 
+                onAddTask={handleAddTask}
+                onDeleteTask={handleDeleteTask}
+             />
+          </div>
+        )}
+
+        {activeTab === Tab.REWARDS && (
+          <div className="animate-in fade-in zoom-in-95 duration-300">
+             <div className="flex items-center justify-between mb-6 px-2">
+                <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                    <div className="bg-pink-500 p-1.5 rounded-lg text-white">
+                      <ShoppingBag size={18} strokeWidth={3}/>
+                    </div>
+                    星星小铺
+                </h2>
+                <div className="bg-pink-100 text-pink-600 px-4 py-1 rounded-full font-black text-xs border-2 border-pink-200">
+                    5星起兑
+                </div>
+             </div>
+             <RewardShop 
+                rewards={rewards} 
+                userPoints={points} 
+                onRedeem={handleRedeemReward} 
+             />
+          </div>
+        )}
+
+        {activeTab === Tab.COACH && (
+          <div className="h-full">
+             <Coach />
+          </div>
+        )}
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 py-4 flex justify-around items-center z-50 rounded-t-[2.5rem] shadow-[0_-15px_30px_rgba(0,0,0,0.05)]">
         <button 
-          onClick={() => setShowSettings(true)}
-          className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition"
+          onClick={() => setActiveTab(Tab.TASKS)}
+          className={`flex flex-col items-center gap-1.5 transition-all group ${activeTab === Tab.TASKS ? 'text-indigo-600' : 'text-slate-300'}`}
         >
-          <Settings className="w-5 h-5 text-slate-600" />
+          <div className={`p-3 rounded-2xl transition-all ${activeTab === Tab.TASKS ? 'bg-indigo-50 shadow-inner' : 'group-hover:bg-slate-50'}`}>
+            <CheckSquare size={26} strokeWidth={activeTab === Tab.TASKS ? 3 : 2} />
+          </div>
+          <span className={`text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === Tab.TASKS ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
+            做任务
+          </span>
         </button>
-      </div>
 
-      <div className="max-w-md mx-auto p-4 space-y-6">
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-8 text-white text-center shadow-lg transform transition hover:scale-105 duration-300">
-          <div className="text-indigo-100 text-sm font-medium mb-2 uppercase tracking-wider">当前拥有星星</div>
-          <div className="text-6xl font-extrabold flex justify-center items-center gap-2 mb-4 drop-shadow-md">
-            {stars} <Star className="w-12 h-12 text-yellow-300 fill-yellow-300 animate-pulse" />
+        <button 
+          onClick={() => setActiveTab(Tab.REWARDS)}
+          className={`flex flex-col items-center gap-1.5 transition-all group ${activeTab === Tab.REWARDS ? 'text-pink-500' : 'text-slate-300'}`}
+        >
+          <div className={`p-3 rounded-2xl transition-all ${activeTab === Tab.REWARDS ? 'bg-pink-50 shadow-inner' : 'group-hover:bg-slate-50'}`}>
+            <ShoppingBag size={26} strokeWidth={activeTab === Tab.REWARDS ? 3 : 2} />
           </div>
-          <button 
-            onClick={addStar}
-            className="bg-white text-indigo-600 font-bold py-3 px-8 rounded-full shadow-md hover:bg-indigo-50 active:scale-95 transition flex items-center gap-2 mx-auto"
-          >
-            <Check className="w-5 h-5" /> 完成任务 +1
-          </button>
-        </div>
+          <span className={`text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === Tab.REWARDS ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
+            兑礼品
+          </span>
+        </button>
 
-        <div>
-          <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
-            <Gift className="w-5 h-5 text-pink-500" /> 兑换奖励
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            {REWARDS.map(reward => (
-              <div key={reward.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center text-center transition hover:shadow-md">
-                <div className="text-4xl mb-2">{reward.icon}</div>
-                <div className="font-bold text-slate-800 mb-1">{reward.name}</div>
-                <div className="text-sm text-slate-500 mb-3">{reward.cost} ⭐️</div>
-                <button
-                  onClick={() => redeemReward(reward)}
-                  disabled={stars < reward.cost}
-                  className={`w-full py-2 rounded-lg text-sm font-bold transition ${
-                    stars >= reward.cost 
-                      ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' 
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  兑换
-                </button>
-              </div>
-            ))}
+        <button 
+          onClick={() => setActiveTab(Tab.COACH)}
+          className={`flex flex-col items-center gap-1.5 transition-all group ${activeTab === Tab.COACH ? 'text-emerald-500' : 'text-slate-300'}`}
+        >
+          <div className={`p-3 rounded-2xl transition-all ${activeTab === Tab.COACH ? 'bg-emerald-100 shadow-inner' : 'group-hover:bg-slate-50'}`}>
+            <MessageCircleQuestion size={26} strokeWidth={activeTab === Tab.COACH ? 3 : 2} />
           </div>
-        </div>
-      </div>
+          <span className={`text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === Tab.COACH ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
+            问专家
+          </span>
+        </button>
+      </nav>
 
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="font-bold text-lg">设置与同步</h3>
-              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                  <Upload className="w-4 h-4" /> 导出存档 (旧设备)
-                </label>
-                <p className="text-xs text-slate-500 mb-2">复制下方代码，发送给新设备：</p>
-                <button onClick={handleExport} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition">
-                  <Copy className="w-4 h-4" /> 复制存档代码
-                </button>
-              </div>
-              <hr className="border-slate-100" />
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                  <Download className="w-4 h-4" /> 导入存档 (新设备)
-                </label>
-                <textarea 
-                  value={importCode}
-                  onChange={(e) => setImportCode(e.target.value)}
-                  placeholder="在此粘贴存档代码..."
-                  className="w-full p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-24 mb-2"
-                />
-                <button onClick={handleImport} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition">
-                  确认导入
-                </button>
-              </div>
-               <hr className="border-slate-100" />
-               <button onClick={handleReset} className="w-full text-red-500 text-sm flex items-center justify-center gap-1 hover:bg-red-50 py-2 rounded">
-                 <RotateCcw className="w-3 h-3" /> 清空数据
-               </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DataSyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
     </div>
   );
 }

@@ -22,7 +22,7 @@ const RewardShop: React.FC<RewardShopProps> = ({ rewards, userPoints, onRedeem }
             <div className="text-4xl mb-2">{reward.icon}</div>
             <h3 className="font-bold text-gray-800 mb-1 leading-tight">{reward.title}</h3>
             <div className={`font-black text-xl mb-3 ${canAfford ? 'text-yellow-600' : 'text-gray-400'}`}>
-              {reward.cost} pts
+              {reward.cost} 星星
             </div>
             
             <button
@@ -36,11 +36,11 @@ const RewardShop: React.FC<RewardShopProps> = ({ rewards, userPoints, onRedeem }
             >
               {canAfford ? (
                 <>
-                  Get it!
+                  立即兑换!
                 </>
               ) : (
                 <>
-                  <Lock size={16} /> Locked
+                  <Lock size={16} /> 星星不足
                 </>
               )}
             </button>
@@ -50,7 +50,7 @@ const RewardShop: React.FC<RewardShopProps> = ({ rewards, userPoints, onRedeem }
 
       <div className="col-span-2 mt-4 p-4 bg-blue-50 rounded-2xl border-2 border-blue-200 text-center">
         <Gift className="mx-auto text-blue-400 mb-2" size={32} />
-        <p className="text-blue-800 font-medium">Keep doing great tasks to unlock more rewards!</p>
+        <p className="text-blue-800 font-medium">继续努力做任务，解锁更多惊喜奖励！</p>
       </div>
     </div>
   );
