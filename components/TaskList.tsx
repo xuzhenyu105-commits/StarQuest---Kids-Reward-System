@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Task, TaskModule } from '../types';
-import { CheckCircle2, Sparkles, Plus, Trash2, BookOpen, Calculator, Globe, Trophy, ListChecks, Calendar, Zap, X, ArrowUpDown, Clock, LayoutGrid, ArrowUpNarrowWide, ArrowDownWideNarrow } from 'lucide-react';
-import { breakDownTask } from '../services/geminiService';
+import { CheckCircle2, Plus, Trash2, BookOpen, Calculator, Globe, Trophy, ListChecks, Calendar, Zap, X, ArrowUpDown, Clock, LayoutGrid, ArrowUpNarrowWide, ArrowDownWideNarrow } from 'lucide-react';
+
+// ❌ 已删除：import { breakDownTask } from '../services/geminiService';
 
 interface TaskListProps {
   tasks: Task[];
@@ -25,7 +26,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onCompleteTask, onAddTask, o
   const [newTaskPoints, setNewTaskPoints] = useState(5);
   const [selectedModule, setSelectedModule] = useState<TaskModule>('general');
   const [taskCategory, setTaskCategory] = useState<'daily' | 'one-time'>('daily');
-  const [isBreakingDown, setIsBreakingDown] = useState(false);
+  // ❌ 已删除：const [isBreakingDown, setIsBreakingDown] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState<TaskModule | 'all'>('all');
   const [sortOption, setSortOption] = useState<SortOption>('date-newest');
@@ -46,33 +47,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onCompleteTask, onAddTask, o
     setShowAddForm(false);
   };
 
-  const handleMagicBreakdown = async () => {
-    if (!newTaskTitle.trim()) return;
-    setIsBreakingDown(true);
-    try {
-      const result = await breakDownTask(newTaskTitle, selectedModule);
-      if (result.suggestedTasks) {
-        result.suggestedTasks.forEach((t, index) => {
-          onAddTask({
-            id: (Date.now() + index).toString(),
-            title: t.title,
-            points: t.points,
-            icon: MODULE_CONFIG[selectedModule].emoji,
-            isCompleted: false,
-            category: 'one-time',
-            module: selectedModule
-          });
-        });
-        setNewTaskTitle('');
-        setShowAddForm(false);
-        setActiveFilter(selectedModule);
-      }
-    } catch (e) {
-      alert("AI 拆解失败，请稍后再试。");
-    } finally {
-      setIsBreakingDown(false);
-    }
-  };
+  // ❌ 已删除：handleMagicBreakdown 函数 (AI 逻辑)
 
   const sortedAndFilteredTasks = useMemo(() => {
     // 1. First Filter
@@ -238,9 +213,9 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onCompleteTask, onAddTask, o
                  <div className="flex gap-1">
                    {[1, 2, 5, 10].map(p => (
                      <button
-                      key={p}
-                      onClick={() => setNewTaskPoints(p)}
-                      className={`w-10 h-10 rounded-xl font-black transition-all ${newTaskPoints === p ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                       key={p}
+                       onClick={() => setNewTaskPoints(p)}
+                       className={`w-10 h-10 rounded-xl font-black transition-all ${newTaskPoints === p ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
                      >
                        {p}
                      </button>
@@ -249,20 +224,13 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onCompleteTask, onAddTask, o
               </div>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="pt-2">
               <button 
                 onClick={handleManualAdd}
-                disabled={isBreakingDown || !newTaskTitle.trim()}
-                className="flex-[1.5] bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-50"
+                disabled={!newTaskTitle.trim()}
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                直接添加
-              </button>
-              <button 
-                onClick={handleMagicBreakdown}
-                disabled={isBreakingDown || !newTaskTitle.trim()}
-                className="flex-1 bg-gradient-to-br from-purple-500 to-indigo-600 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-purple-200 active:scale-95 transition-all disabled:opacity-50"
-              >
-                {isBreakingDown ? <div className="animate-spin text-lg">✨</div> : <><Sparkles size={18} /> AI拆解</>}
+                <Plus size={20} /> 确认添加任务
               </button>
             </div>
           </div>
