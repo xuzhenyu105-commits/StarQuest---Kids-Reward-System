@@ -8,6 +8,7 @@ export interface Task {
   isCompleted: boolean;
   category: 'daily' | 'one-time';
   module: TaskModule;
+  completionTime?: string;
 }
 
 export interface Reward {
